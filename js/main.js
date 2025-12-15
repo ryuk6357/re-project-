@@ -1,4 +1,3 @@
-
 /* ===============================
    FIREBASE INIT (v8 compatible)
 ================================ */
@@ -35,6 +34,7 @@ let myName = ""
 let roomId = ""
 let isHost = false
 let rotation = 0
+let currentTurn = 0
 
 /* ===============================
    UI MODE SWITCH
@@ -75,11 +75,11 @@ window.createRoom = () => {
   isHost = true
 
   db.ref("rooms/" + roomId).set({
-    host: "",
     players: [],
     started: false,
     turn: 0,
-    spinIndex: null
+    spinIndex: null,
+    lastAction: null
   })
 
   openLobby()
@@ -104,14 +104,14 @@ function openLobby() {
   lobby.classList.remove("hidden")
   roomCode.innerText = roomId
 
-  // 🔥 REALTIME PLAYERS LIST
+  // players realtime
   db.ref("rooms/" + roomId + "/players")
-    .on("value", snapshot => {
-      players = snapshot.val() || []
+    .on("value", snap => {
+      players = snap.val() || []
       playersList.innerText = players.join(", ")
     })
 
-  // 🔥 ROOM STATE LISTENER
+  // room state
   db.ref("rooms/" + roomId)
     .on("value", snap => {
       const data = snap.val()
@@ -124,24 +124,33 @@ function openLobby() {
         updateTurn(data.turn)
       }
     })
+
+  // truth dare sync
+  db.ref("rooms/" + roomId + "/lastAction")
+    .on("value", snap => {
+      const a = snap.val()
+      if (!a) return
+
+      result.innerText = a.by + " chose " + a.type
+      question.innerText = a.type + ": " + a.text
+      tdBox.classList.add("hidden")
+    })
 }
 
 window.joinGame = () => {
   myName = playerName.value.trim()
   if (!myName) return
 
-  const playersRef = db.ref("rooms/" + roomId + "/players")
+  const ref = db.ref("rooms/" + roomId + "/players")
 
-  playersRef.once("value", snap => {
+  ref.once("value", snap => {
     const list = snap.val() || []
-
     if (list.includes(myName)) {
       alert("Name already taken")
       return
     }
-
     list.push(myName)
-    playersRef.set(list)
+    ref.set(list)
   })
 }
 
@@ -159,7 +168,8 @@ window.startMultiGame = () => {
   db.ref("rooms/" + roomId).update({
     started: true,
     turn: 0,
-    spinIndex: null
+    spinIndex: null,
+    lastAction: null
   })
 }
 
@@ -173,7 +183,7 @@ function startGame() {
 }
 
 /* ===============================
-   RENDER PLAYERS
+   RENDER PLAYERS (CIRCLE LOGIC)
 ================================ */
 function renderPlayers() {
   const area = document.querySelector(".game-area")
@@ -184,9 +194,9 @@ function renderPlayers() {
   const step = 360 / players.length
 
   players.forEach((p, i) => {
-    const a = (step * i - 90) * Math.PI / 180
-    const x = c + r * Math.cos(a)
-    const y = c + r * Math.sin(a)
+    const angle = (step * i - 90) * Math.PI / 180
+    const x = c + r * Math.cos(angle)
+    const y = c + r * Math.sin(angle)
 
     const d = document.createElement("div")
     d.className = "player"
@@ -203,16 +213,20 @@ function renderPlayers() {
    TURN + SPIN SYNC
 ================================ */
 function updateTurn(t) {
-  turnInfo.innerText = "Turn " + players[t]
+  currentTurn = t
+  turnInfo.innerText = "🔴 " + players[t] + "'s Turn"
+
   bottle.style.pointerEvents =
     players[t] === myName ? "auto" : "none"
+
+  tdBox.style.display =
+    players[t] === myName ? "block" : "none"
 }
 
 function spin() {
   db.ref("rooms/" + roomId).once("value", snap => {
     const data = snap.val()
     if (!data) return
-
     if (players[data.turn] !== myName) return
 
     const i = Math.floor(Math.random() * players.length)
@@ -239,33 +253,44 @@ function listenSpin() {
 }
 
 /* ===============================
-   SPIN ANIMATION
+   SMOOTH SPIN ANIMATION
 ================================ */
 function animateSpin(i) {
   spinSound.currentTime = 0
   spinSound.play()
 
-  const angle = (360 / players.length) * i + 90
-  rotation += 360 * 4 + angle
+  const angle =
+    (360 / players.length) * i + 90 + 360 * 4
 
   bottle.style.transform =
-    `translate(-50%,-50%) rotate(${rotation}deg)`
+    `translate(-50%,-50%) rotate(${angle}deg)`
 
   result.innerText = "Selected " + players[i]
-  tdBox.classList.remove("hidden")
 }
 
 /* ===============================
-   TRUTH / DARE
+   TRUTH / DARE (SYNCED)
 ================================ */
 window.pickTruth = () => {
-  question.innerText =
-    "Truth: " + truths[Math.floor(Math.random() * truths.length)]
-  tdBox.classList.add("hidden")
+  if (players[currentTurn] !== myName) return
+
+  const q = truths[Math.floor(Math.random() * truths.length)]
+
+  db.ref("rooms/" + roomId + "/lastAction").set({
+    by: myName,
+    type: "Truth",
+    text: q
+  })
 }
 
 window.pickDare = () => {
-  question.innerText =
-    "Dare: " + dares[Math.floor(Math.random() * dares.length)]
-  tdBox.classList.add("hidden")
-       }
+  if (players[currentTurn] !== myName) return
+
+  const q = dares[Math.floor(Math.random() * dares.length)]
+
+  db.ref("rooms/" + roomId + "/lastAction").set({
+    by: myName,
+    type: "Dare",
+    text: q
+  })
+}
