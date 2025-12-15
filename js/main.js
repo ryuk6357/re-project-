@@ -266,7 +266,6 @@ function updateTurn(t) {
   bottle.style.pointerEvents =
     playerIds[t] === myId ? "auto" : "none"
 
-  tdBox.style.display = "none"
   question.innerText = ""
 }
 
@@ -290,7 +289,11 @@ function spin() {
     })
   })
 }
-
+if (playerIds[selectedPlayerIndex] === myId) {
+  tdBox.style.display = "block"
+} else {
+  tdBox.style.display = "none"
+}
 /* ===============================
    LISTENERS
 ================================ */
@@ -360,8 +363,8 @@ window.pickTruth = () => {
     text: q
   })
 }
-
-window.pickDare = () => {
+  tdBox.style.display = "none"
+  window.pickDare = () => {
   if (playerIds[selectedPlayerIndex] !== myId) return
   spinLocked = true
 
@@ -371,4 +374,6 @@ window.pickDare = () => {
     type: "Dare",
     text: q
   })
+  
+  tdBox.style.display = "none"
 }
