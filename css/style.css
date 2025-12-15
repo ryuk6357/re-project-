@@ -67,3 +67,14 @@ input{
     display: none;
   }
 }
+.player {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  max-width: 60px;
+  text-align: center;
+  line-height: 1.2;
+  white-space: normal;
+  word-break: break-word;
+  pointer-events: none;
+}
