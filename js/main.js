@@ -1,6 +1,7 @@
 /* ===============================
    FIREBASE INIT (v8 compatible)
 ================================ */
+alert("main.js loaded")
 var firebaseConfig = {
   apiKey: "AIzaSyCXpP9X2KSEWK-KGshCTEBvFSmA4pK-mS8",
   databaseURL: "https://e-protocol-spin-the-bottle-default-rtdb.firebaseio.com"
