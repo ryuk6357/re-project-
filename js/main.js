@@ -361,33 +361,37 @@ function animateSpin(i) {
   } else {
     tdBox.style.display = "none"
   }
+// SHOW TD ONLY TO SELECTED PLAYER
+if (players[selectedPlayerIndex] === myName) {
+  tdBox.style.display = "block"
+} else {
+  tdBox.style.display = "none"
 }
+
+// CLEAR OLD QUESTION
+question.innerText = ""
 
 /* ===============================
    TRUTH / DARE
 ================================ */
 window.pickTruth = () => {
-  if (playerIds[selectedPlayerIndex] !== myName) return
-  spinLocked = true
+  if (players[selectedPlayerIndex] !== myName) return
 
   const q = truths[Math.floor(Math.random() * truths.length)]
-  db.ref("rooms/" + roomId + "/lastAction").set({
-    by: players[selectedPlayerIndex],
-    type: "Truth",
-    text: q
-  })
-}
+
+  // SHOW QUESTION TO EVERYONE
+  question.innerText = "Truth: " + q
+  result.innerText = players[selectedPlayerIndex] + " chose Truth"
+
   tdBox.style.display = "none"
+}
   window.pickDare = () => {
-  if (playerIds[selectedPlayerIndex] !== myName) return
-  spinLocked = true
+  if (players[selectedPlayerIndex] !== myName) return
 
   const q = dares[Math.floor(Math.random() * dares.length)]
-  db.ref("rooms/" + roomId + "/lastAction").set({
-    by: players[selectedPlayerIndex],
-    type: "Dare",
-    text: q
-  })
-  
+
+  question.innerText = "Dare: " + q
+  result.innerText = players[selectedPlayerIndex] + " chose Dare"
+
   tdBox.style.display = "none"
-}
+  }
