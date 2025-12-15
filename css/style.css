@@ -35,6 +35,9 @@ input{
   display:none;
 }
 
+/* ===============================
+   GAME AREA
+================================ */
 .game-area{
   width:360px;
   height:360px;
@@ -48,8 +51,12 @@ input{
     #ffd86d,
     #ff7ad9
   );
+  box-shadow:0 0 25px rgba(255,122,217,0.25);
 }
 
+/* ===============================
+   BOTTLE (SMOOTH AS F***)
+================================ */
 .bottle{
   position:absolute;
   top:50%;
@@ -58,6 +65,64 @@ input{
   height:140px;
   background:url("https://i.ibb.co/nqVdXy8v/image-1.png") center no-repeat;
   background-size:contain;
+
   transform:translate(-50%,-50%) rotate(0deg);
-  transition:transform 4s ease-out;
+
+  /* 🔥 REAL INERTIA FEEL */
+  transition:transform 4.5s cubic-bezier(0.15,0.85,0.25,1);
+
+  will-change:transform;
+}
+
+/* optional ultra polish */
+.bottle.spinning{
+  filter:blur(0.8px);
+}
+
+/* ===============================
+   PLAYERS
+================================ */
+.player{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  font-size:13px;
+  font-weight:600;
+  white-space:nowrap;
+
+  padding:4px 8px;
+  border-radius:12px;
+
+  background:rgba(0,0,0,0.45);
+  backdrop-filter:blur(6px);
+
+  transition:
+    transform .3s ease,
+    opacity .3s ease,
+    box-shadow .3s ease;
+}
+
+/* active turn player */
+.player.active{
+  color:#ff7ad9;
+  box-shadow:0 0 12px rgba(255,122,217,0.9);
+  transform:translate(-50%,-50%) scale(1.15);
+}
+
+/* inactive players */
+.player.inactive{
+  opacity:0.5;
+}
+
+/* ===============================
+   RESULT / QUESTION
+================================ */
+#result{
+  margin-top:12px;
+  font-size:18px;
+}
+
+.question-box{
+  margin-top:14px;
+  font-size:18px;
+  padding:12px;
 }
