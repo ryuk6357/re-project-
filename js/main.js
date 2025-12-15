@@ -1,4 +1,25 @@
-
+// 📱 MOBILE ONLY BLOCK
+if (window.innerWidth > 600) {
+  document.body.innerHTML = `
+    <div style="
+      height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      background:#0b0b0f;
+      color:white;
+      font-family:Segoe UI;
+      padding:20px;
+    ">
+      <div>
+        <h2 style="color:#ff7ad9">Mobile Only Game 📱</h2>
+        <p>Please open this game on your phone</p>
+      </div>
+    </div>
+  `
+  throw new Error("Desktop blocked")
+}
 /* ===============================
    FIREBASE INIT v8
 ================================ */
