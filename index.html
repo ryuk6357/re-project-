@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Spin The Bottle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<h1>Spin The Bottle</h1>
+
+<div id="home">
+  <button onclick="showNormal()">Normal Mode</button>
+  <button onclick="showMulti()">Multiplayer</button>
+</div>
+
+<div id="normal" class="hidden">
+  <input id="nName" placeholder="Player name">
+  <button onclick="addNormal()">Add</button>
+  <p id="nList"></p>
+  <button onclick="startNormal()">Start Game</button>
+</div>
+
+<div id="multi" class="hidden">
+  <button onclick="createRoom()">Create Room</button><br>
+  <input id="roomInput" placeholder="Room Code">
+  <button onclick="joinRoom()">Join Room</button>
+</div>
+
+<div id="lobby" class="hidden">
+  <h3>Room <span id="roomCode"></span></h3>
+  <input id="playerName" placeholder="Your name">
+  <button onclick="joinGame()">Join Game</button>
+  <p id="playersList"></p>
+  <button onclick="startMultiGame()">Start Game</button>
+</div>
+
+<div id="game" class="hidden">
+  <p id="turnInfo"></p>
+
+  <div class="game-area">
+    <div class="bottle" id="bottle"></div>
+  </div>
+
+  <h2 id="result">Tap bottle</h2>
+
+  <div id="tdBox" class="hidden">
+    <button onclick="pickTruth()">Truth</button>
+    <button onclick="pickDare()">Dare</button>
+  </div>
+
+  <div id="question"></div>
+</div>
+
+<audio id="spinSound">
+  <source src="https://files.catbox.moe/x821vj.mp3" type="audio/mpeg">
+</audio>
+
+<script type="module" src="js/main.js"></script>
+
+</body>
+  </html>
