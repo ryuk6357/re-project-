@@ -357,9 +357,7 @@ function animateSpin(i) {
   question.innerText = "Waiting for choice..."
 
   if (playerIds[i] === myName) {
-    tdBox.style.display = "block"
-  } else {
-    tdBox.style.display = "none"
+Box.style.display = "none"
   }
 // SHOW TD ONLY TO SELECTED PLAYER
 if (players[selectedPlayerIndex] === myName) {
