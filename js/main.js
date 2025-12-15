@@ -1,6 +1,6 @@
 
 /* ===============================
-   FIREBASE INIT (v8)
+   FIREBASE INIT v8
 ================================ */
 alert("main.js loaded")
 
@@ -12,7 +12,7 @@ firebase.initializeApp(firebaseConfig)
 var db = firebase.database()
 
 /* ===============================
-   DEVICE ID (ONE DEVICE = ONE PLAYER)
+   DEVICE ID one device one player
 ================================ */
 let myId = localStorage.getItem("playerId")
 if (!myId) {
@@ -39,16 +39,18 @@ const dares = [
 
 let mode = ""
 let roomId = ""
-let isHost = false
 let myName = ""
 
-let players = []        // ordered list of names
-let playerIds = []      // ordered list of ids
+let players = []
+let playerIds = []
+
 let currentTurn = 0
+let selectedPlayerIndex = null
 let spinLocked = false
+let visualRotation = 0
 
 /* ===============================
-   UI MODE SWITCH
+   UI MODE
 ================================ */
 window.showNormal = () => {
   mode = "normal"
@@ -79,14 +81,12 @@ window.startNormal = () => {
 }
 
 /* ===============================
-   MULTIPLAYER – ROOM
+   MULTIPLAYER ROOM
 ================================ */
 window.createRoom = () => {
   roomId = Math.random().toString(36).slice(2, 8).toUpperCase()
-  isHost = true
 
   db.ref("rooms/" + roomId).set({
-    host: myId,
     started: false,
     turn: 0,
     spinIndex: null,
@@ -119,15 +119,17 @@ function openLobby() {
   lobby.classList.remove("hidden")
   roomCode.innerText = roomId
 
-  // players listener
   db.ref("rooms/" + roomId + "/players").on("value", snap => {
     const data = snap.val() || {}
     playerIds = Object.keys(data)
     players = playerIds.map(id => data[id].name)
     playersList.innerText = players.join(", ")
+
+    if (!game.classList.contains("hidden")) {
+      renderPlayers()
+    }
   })
 
-  // room state listener
   db.ref("rooms/" + roomId).on("value", snap => {
     const data = snap.val()
     if (!data) return
@@ -140,7 +142,6 @@ function openLobby() {
     }
   })
 
-  // Truth Dare sync
   db.ref("rooms/" + roomId + "/lastAction").on("value", snap => {
     const a = snap.val()
     if (!a) return
@@ -152,7 +153,7 @@ function openLobby() {
 }
 
 /* ===============================
-   JOIN GAME (ONE DEVICE ONLY)
+   JOIN GAME
 ================================ */
 window.joinGame = () => {
   myName = playerName.value.trim()
@@ -162,26 +163,18 @@ window.joinGame = () => {
 
   ref.once("value", snap => {
     if (snap.exists()) {
-      alert("You already joined this room")
+      alert("Already joined")
       return
     }
     ref.set({ name: myName })
   })
 }
 
-/* ===============================
-   START MULTIPLAYER
-================================ */
 window.startMultiGame = () => {
-  if (!isHost) {
-    alert("Only host can start")
-    return
-  }
   if (players.length < 2) {
-    alert("Minimum 2 players required")
+    alert("Minimum 2 players needed")
     return
   }
-
   db.ref("rooms/" + roomId).update({
     started: true,
     turn: 0,
@@ -200,7 +193,7 @@ function startGame() {
 }
 
 /* ===============================
-   RENDER PLAYERS (NO OVERLAP)
+   RENDER PLAYERS
 ================================ */
 function renderPlayers() {
   const area = document.querySelector(".game-area")
@@ -233,21 +226,23 @@ function renderPlayers() {
 }
 
 /* ===============================
-   TURN CONTROL
+   TURN UPDATE
 ================================ */
 function updateTurn(t) {
   currentTurn = t
-  turnInfo.innerText = "🔴 " + players[t] + "'s Turn"
+  selectedPlayerIndex = null
+  spinLocked = false
+
+  turnInfo.innerText = players[t] + " turn"
 
   bottle.style.pointerEvents =
     playerIds[t] === myId ? "auto" : "none"
 
-  tdBox.style.display =
-    playerIds[t] === myId && !spinLocked ? "block" : "none"
+  tdBox.style.display = "none"
 }
 
 /* ===============================
-   SPIN (STRICT)
+   SPIN STRICT
 ================================ */
 function spin() {
   if (spinLocked) return
@@ -268,7 +263,7 @@ function spin() {
 }
 
 /* ===============================
-   GAME LISTENERS
+   LISTENERS
 ================================ */
 function attachGameListeners() {
   const spinRef = db.ref("rooms/" + roomId + "/spinIndex")
@@ -289,43 +284,58 @@ function attachGameListeners() {
 }
 
 /* ===============================
-   SMOOTH SPIN ANIMATION
+   SMOOTH SPIN
 ================================ */
 function animateSpin(i) {
   spinSound.currentTime = 0
   spinSound.play()
 
-  const base = (360 / players.length) * i + 90
-  const angle = 5 * 360 + base
+  selectedPlayerIndex = i
 
-  bottle.style.transition = "transform 4s ease-out"
+  const fullSpins = 6
+  const slice = 360 / players.length
+  const target = slice * i + 90
+
+  visualRotation += fullSpins * 360 + target
+
+  bottle.style.transition = "none"
+  bottle.getBoundingClientRect()
+
+  bottle.style.transition =
+    "transform 4.5s cubic-bezier(0.15,0.85,0.25,1)"
+
   bottle.style.transform =
-    `translate(-50%,-50%) rotate(${angle}deg)`
+    `translate(-50%,-50%) rotate(${visualRotation}deg)`
 
   result.innerText = "Selected " + players[i]
+
+  tdBox.style.display =
+    playerIds[i] === myId ? "block" : "none"
 }
 
 /* ===============================
-   TRUTH / DARE (ONE TIME)
+   TRUTH DARE
 ================================ */
 window.pickTruth = () => {
-  if (playerIds[currentTurn] !== myId) return
+  if (playerIds[selectedPlayerIndex] !== myId) return
+  spinLocked = true
 
   const q = truths[Math.floor(Math.random() * truths.length)]
   db.ref("rooms/" + roomId + "/lastAction").set({
-    by: myName,
+    by: players[selectedPlayerIndex],
     type: "Truth",
     text: q
   })
 }
 
 window.pickDare = () => {
-  if (playerIds[currentTurn] !== myId) return
+  if (playerIds[selectedPlayerIndex] !== myId) return
+  spinLocked = true
 
   const q = dares[Math.floor(Math.random() * dares.length)]
   db.ref("rooms/" + roomId + "/lastAction").set({
-    by: myName,
+    by: players[selectedPlayerIndex],
     type: "Dare",
     text: q
   })
-       }
+         }
