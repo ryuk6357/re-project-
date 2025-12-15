@@ -1,395 +1,180 @@
-// 📱 MOBILE ONLY BLOCK
+// MOBILE ONLY
 if (window.innerWidth > 600) {
-  document.body.innerHTML = `
-    <div style="
-      height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      background:#0b0b0f;
-      color:white;
-      font-family:Segoe UI;
-      padding:20px;
-    ">
-      <div>
-        <h2 style="color:#ff7ad9">Mobile Only Game 📱</h2>
-        <p>Please open this game on your phone</p>
-      </div>
-    </div>
-  `
-  throw new Error("Desktop blocked")
+  document.body.innerHTML = "<h2 style='color:white'>Open on mobile</h2>"
+  throw new Error()
 }
 
-/* ===============================
-   FIREBASE INIT v8
-================================ */
-alert("main.js loaded")
+// FIREBASE
+firebase.initializeApp({
+  apiKey:"AIzaSyCXpP9X2KSEWK-KGshCTEBvFSmA4pK-mS8",
+  databaseURL:"https://e-protocol-spin-the-bottle-default-rtdb.firebaseio.com"
+})
+const db = firebase.database()
 
-var firebaseConfig = {
-  apiKey: "AIzaSyCXpP9X2KSEWK-KGshCTEBvFSmA4pK-mS8",
-  databaseURL: "https://e-protocol-spin-the-bottle-default-rtdb.firebaseio.com"
-}
-firebase.initializeApp(firebaseConfig)
-var db = firebase.database()
-
-/* ===============================
-   DEVICE ID (one device one player)
-================================ */
-let myId = localStorage.getItem("playerId")
+// DEVICE ID
+let myId = localStorage.getItem("pid")
 if (!myId) {
-  myId = "p_" + Math.random().toString(36).slice(2, 10)
-  localStorage.setItem("playerId", myId)
+  myId = "p_" + Math.random().toString(36).slice(2)
+  localStorage.setItem("pid", myId)
 }
 
-/* ===============================
-   GAME DATA
-================================ */
-const truths = [
-  "Sach batao sabse risky decision kya liya",
-  "Kis cheez se darte ho",
-  "Kabhi instant regret hua",
-  "Truth ya Dare kya pasand"
-]
+// DATA
+const truths = ["Truth 1","Truth 2","Truth 3"]
+const dares = ["Dare 1","Dare 2","Dare 3"]
 
-const dares = [
-  "10 second freeze",
-  "Naam ulta likho",
-  "Serious face 5 second",
-  "Next round ka hype banao"
-]
+let players=[]
+let myName=""
+let roomId=""
+let isHost=false
+let selectedIndex=null
+let rotation=0
 
-let roomId = ""
-let myName = ""
-
-let players = []
-let playerIds = []
-
-let currentTurn = 0
-let selectedPlayerIndex = null
-let spinLocked = false
-let visualRotation = 0
-
-/* ===============================
-   UI MODE
-================================ */
-window.showNormal = () => {
+// UI
+function showNormal(){
   home.classList.add("hidden")
   normal.classList.remove("hidden")
 }
 
-window.showMulti = () => {
+function showMulti(){
   home.classList.add("hidden")
   multi.classList.remove("hidden")
 }
 
-/* ===============================
-   NORMAL MODE
-================================ */
-window.addNormal = () => {
-  const n = nName.value.trim()
-  if (!n) return
-  players.push(n)
-  nName.value = ""
-  nList.innerText = players.join(", ")
+// NORMAL
+function addNormal(){
+  if(!nName.value)return
+  players.push(nName.value)
+  nName.value=""
+  nList.innerText=players.join(", ")
 }
 
-window.startNormal = () => {
-  if (players.length < 2) return
+function startNormal(){
+  if(players.length<2)return
   startGame()
 }
 
-/* ===============================
-   MULTIPLAYER ROOM
-================================ */
-window.createRoom = () => {
-  roomId = Math.random().toString(36).slice(2, 8).toUpperCase()
-
-  db.ref("rooms/" + roomId).set({
-  hostId: myId,
-  started: false,
-  turn: 0,
-  spinIndex: null,
-  lastAction: null,
-  players: {}
-})
-
+// MULTI
+function createRoom(){
+  roomId=Math.random().toString(36).slice(2,8).toUpperCase()
+  isHost=true
+  db.ref("rooms/"+roomId).set({
+    host:myId,
+    players:{},
+    turn:0,
+    spin:null,
+    action:null
+  })
   openLobby()
 }
 
-window.joinRoom = () => {
-  const code = roomInput.value.trim().toUpperCase()
-  if (!code) return
-
-  db.ref("rooms/" + code).once("value", snap => {
-    if (!snap.exists()) {
-      alert("Room not found")
-      return
-    }
-    roomId = code
-    openLobby()
-  })
+function joinRoom(){
+  roomId=roomInput.value.toUpperCase()
+  openLobby()
 }
 
-/* ===============================
-   LOBBY
-================================ */
-function openLobby() {
+function openLobby(){
   multi.classList.add("hidden")
   lobby.classList.remove("hidden")
-  roomCode.innerText = roomId
+  roomCode.innerText=roomId
 
-  db.ref("rooms/" + roomId + "/players").on("value", snap => {
-    const data = snap.val() || {}
-    playerIds = Object.keys(data)
-    players = playerIds.map(id => data[id].name)
-    playersList.innerText = players.join(", ")
+  db.ref("rooms/"+roomId).on("value",snap=>{
+    const d=snap.val()
+    if(!d)return
+    players=Object.values(d.players||{})
+    playersList.innerText=players.join(", ")
 
-    if (!game.classList.contains("hidden")) {
-      renderPlayers()
+    if(d.spin!==null) animateSpin(d.spin)
+    if(d.action){
+      question.innerText=d.action
+      tdBox.classList.add("hidden")
     }
-  })
-
-  db.ref("rooms/" + roomId).on("value", snap => {
-    const data = snap.val()
-    if (!data) return
-
-    if (data.started) {
-      lobby.classList.add("hidden")
-      startGame()
-      attachGameListeners()
-      updateTurn(data.turn)
-    }
-  })
-
-  // 🔥 GLOBAL RESULT SYNC
-  db.ref("rooms/" + roomId + "/lastAction").on("value", snap => {
-    const a = snap.val()
-    if (!a) return
-
-    result.innerText = "Selected " + a.by
-    question.innerText = a.type + ": " + a.text
-
-    tdBox.style.display = "none"
-    spinLocked = false
+    turnInfo.innerText="Turn "+players[d.turn]
   })
 }
 
-/* ===============================
-   JOIN GAME
-================================ */
-window.joinGame = () => {
-  myName = playerName.value.trim()
-  if (!myName) return
+function joinGame(){
+  myName=playerName.value
+  if(!myName)return
+  db.ref("rooms/"+roomId+"/players/"+myId).set(myName)
+}
 
-  const ref = db.ref("rooms/" + roomId + "/players/" + myId)
-
-  ref.once("value", snap => {
-    if (snap.exists()) {
-      alert("Already joined")
-      return
-    }
-    ref.set({ name: myName })
+function startMultiGame(){
+  db.ref("rooms/"+roomId).once("value",snap=>{
+    if(snap.val().host!==myId)return
+    db.ref("rooms/"+roomId).update({turn:0,spin:null,action:null})
+    startGame()
   })
 }
-window.startMultiGame = () => {
-  db.ref("rooms/" + roomId).once("value", snap => {
-    const data = snap.val()
-    if (!data) return
 
-    // ❌ host nahi hai
-    if (data.hostId !== myId) {
-      alert("Only host can start the game")
-      return
-    }
-
-    // ❌ kam players
-    if (players.length < 2) {
-      alert("Minimum 2 players needed")
-      return
-    }
-
-    // ✅ host start karega
-    db.ref("rooms/" + roomId).update({
-      started: true,
-      turn: 0,
-      spinIndex: null,
-      lastAction: null
-    })
-  })
-      }
-
-/* ===============================
-   GAME START
-================================ */
-function startGame() {
+// GAME
+function startGame(){
+  lobby.classList.add("hidden")
   normal.classList.add("hidden")
   game.classList.remove("hidden")
   renderPlayers()
+  bottle.onclick=spin
 }
 
-/* ===============================
-   RENDER PLAYERS (NO OVERLAP)
-================================ */
-function renderPlayers() {
-  const area = document.querySelector(".game-area")
-  area.innerHTML = ""
-
-  const bottleDiv = document.createElement("div")
-  bottleDiv.className = "bottle"
-  bottleDiv.id = "bottle"
-  area.appendChild(bottleDiv)
-
-  const count = players.length
-  const center = 180
-  let radius = count === 2 ? 155 : count === 3 ? 140 : 125
-  const step = 360 / count
-
-  players.forEach((p, i) => {
-    const angle = (step * i - 90) * Math.PI / 180
-    const x = center + radius * Math.cos(angle)
-    const y = center + radius * Math.sin(angle)
-
-    const d = document.createElement("div")
-    d.className = "player"
-    d.style.left = x + "px"
-    d.style.top = y + "px"
-    d.style.whiteSpace = "nowrap"
-    d.style.maxWidth = "120px"
-    d.style.overflow = "hidden"
-    d.style.textOverflow = "ellipsis"
-    d.innerText = p
-
+function renderPlayers(){
+  area.querySelectorAll(".player").forEach(e=>e.remove())
+  const c=160,r=130,step=360/players.length
+  players.forEach((p,i)=>{
+    const a=(step*i-90)*Math.PI/180
+    const d=document.createElement("div")
+    d.className="player"
+    d.style.left=c+r*Math.cos(a)+"px"
+    d.style.top=c+r*Math.sin(a)+"px"
+    d.innerText=p
     area.appendChild(d)
   })
-
-  bottle = bottleDiv
-  bottle.onclick = spin
 }
 
-/* ===============================
-   TURN UPDATE
-================================ */
-function updateTurn(t) {
-  currentTurn = t
-  selectedPlayerIndex = null
-  spinLocked = false
-
-  turnInfo.innerText = players[t] + " turn"
-
-  bottle.style.pointerEvents =
-    playerIds[t] === myId ? "auto" : "none"
-
-  question.innerText = ""
-}
-
-/* ===============================
-   SPIN STRICT
-================================ */
-function spin() {
-  if (spinLocked) return
-
-  db.ref("rooms/" + roomId).once("value", snap => {
-    const data = snap.val()
-    if (!data) return
-    if (playerIds[data.turn] !== myId) return
-
-    spinLocked = true
-    const i = Math.floor(Math.random() * players.length)
-
-    db.ref("rooms/" + roomId).update({
-      spinIndex: i,
-      turn: (data.turn + 1) % players.length
+// SPIN
+function spin(){
+  if(!roomId){
+    const i=Math.floor(Math.random()*players.length)
+    animateSpin(i)
+    return
+  }
+  db.ref("rooms/"+roomId).once("value",snap=>{
+    const d=snap.val()
+    if(players[d.turn]!==myName)return
+    const i=Math.floor(Math.random()*players.length)
+    db.ref("rooms/"+roomId).update({
+      spin:i,
+      turn:(d.turn+1)%players.length
     })
   })
 }
-if (playerIds[selectedPlayerIndex] === myId) {
-  tdBox.style.display = "block"
-} else {
-  tdBox.style.display = "none"
-}
-/* ===============================
-   LISTENERS
-================================ */
-function attachGameListeners() {
-  const spinRef = db.ref("rooms/" + roomId + "/spinIndex")
-  const turnRef = db.ref("rooms/" + roomId + "/turn")
 
-  spinRef.off()
-  turnRef.off()
+function animateSpin(i){
+  selectedIndex=i
+  rotation+=360*5+(360/players.length)*i
+  bottle.style.transform=`translate(-50%,-50%) rotate(${rotation}deg)`
+  result.innerText="Selected "+players[i]
 
-  spinRef.on("value", snap => {
-    const i = snap.val()
-    if (i === null) return
-    animateSpin(i)
-  })
-
-  turnRef.on("value", snap => {
-    updateTurn(snap.val())
-  })
-}
-
-/* ===============================
-   SMOOTH SPIN
-================================ */
-function animateSpin(i) {
-  spinSound.currentTime = 0
-  spinSound.play()
-
-  selectedPlayerIndex = i
-
-  const fullSpins = 6
-  const slice = 360 / players.length
-  const target = slice * i + 90
-
-  visualRotation += fullSpins * 360 + target
-
-  bottle.style.transition = "none"
-  bottle.getBoundingClientRect()
-
-  bottle.style.transition =
-    "transform 4.5s cubic-bezier(0.15,0.85,0.25,1)"
-
-  bottle.style.transform =
-    `translate(-50%,-50%) rotate(${visualRotation}deg)`
-
-  result.innerText = "Selected " + players[i]
-  question.innerText = "Waiting for choice..."
-
-  if (playerIds[i] === myName) {
-Box.style.display = "none"
+  if(players[i]===myName){
+    tdBox.classList.remove("hidden")
+  }else{
+    tdBox.classList.add("hidden")
   }
-// SHOW TD ONLY TO SELECTED PLAYER
-if (players[selectedPlayerIndex] === myName) {
-  tdBox.style.display = "block"
-} else {
-  tdBox.style.display = "none"
 }
 
-// CLEAR OLD QUESTION
-question.innerText = ""
-
-/* ===============================
-   TRUTH / DARE
-================================ */
-window.pickTruth = () => {
-  if (players[selectedPlayerIndex] !== myName) return
-
-  const q = truths[Math.floor(Math.random() * truths.length)]
-
-  // SHOW QUESTION TO EVERYONE
-  question.innerText = "Truth: " + q
-  result.innerText = players[selectedPlayerIndex] + " chose Truth"
-
-  tdBox.style.display = "none"
+// TD
+function pickTruth(){
+  sendAction("Truth: "+truths[Math.floor(Math.random()*truths.length)])
 }
-  window.pickDare = () => {
-  if (players[selectedPlayerIndex] !== myName) return
 
-  const q = dares[Math.floor(Math.random() * dares.length)]
+function pickDare(){
+  sendAction("Dare: "+dares[Math.floor(Math.random()*dares.length)])
+}
 
-  question.innerText = "Dare: " + q
-  result.innerText = players[selectedPlayerIndex] + " chose Dare"
-
-  tdBox.style.display = "none"
+function sendAction(text){
+  if(players[selectedIndex]!==myName)return
+  tdBox.classList.add("hidden")
+  if(roomId){
+    db.ref("rooms/"+roomId).update({action:text})
+  }else{
+    question.innerText=text
   }
+        }
