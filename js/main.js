@@ -106,12 +106,13 @@ window.createRoom = () => {
   roomId = Math.random().toString(36).slice(2, 8).toUpperCase()
 
   db.ref("rooms/" + roomId).set({
-    started: false,
-    turn: 0,
-    spinIndex: null,
-    lastAction: null,
-    players: {}
-  })
+  hostId: myId,
+  started: false,
+  turn: 0,
+  spinIndex: null,
+  lastAction: null,
+  players: {}
+})
 
   openLobby()
 }
@@ -191,19 +192,32 @@ window.joinGame = () => {
     ref.set({ name: myName })
   })
 }
-
 window.startMultiGame = () => {
-  if (players.length < 2) {
-    alert("Minimum 2 players needed")
-    return
-  }
-  db.ref("rooms/" + roomId).update({
-    started: true,
-    turn: 0,
-    spinIndex: null,
-    lastAction: null
+  db.ref("rooms/" + roomId).once("value", snap => {
+    const data = snap.val()
+    if (!data) return
+
+    // ❌ host nahi hai
+    if (data.hostId !== myId) {
+      alert("Only host can start the game")
+      return
+    }
+
+    // ❌ kam players
+    if (players.length < 2) {
+      alert("Minimum 2 players needed")
+      return
+    }
+
+    // ✅ host start karega
+    db.ref("rooms/" + roomId).update({
+      started: true,
+      turn: 0,
+      spinIndex: null,
+      lastAction: null
+    })
   })
-}
+      }
 
 /* ===============================
    GAME START
@@ -342,7 +356,7 @@ function animateSpin(i) {
   result.innerText = "Selected " + players[i]
   question.innerText = "Waiting for choice..."
 
-  if (playerIds[i] === myId) {
+  if (playerIds[i] === myName) {
     tdBox.style.display = "block"
   } else {
     tdBox.style.display = "none"
@@ -353,7 +367,7 @@ function animateSpin(i) {
    TRUTH / DARE
 ================================ */
 window.pickTruth = () => {
-  if (playerIds[selectedPlayerIndex] !== myId) return
+  if (playerIds[selectedPlayerIndex] !== myName) return
   spinLocked = true
 
   const q = truths[Math.floor(Math.random() * truths.length)]
@@ -365,7 +379,7 @@ window.pickTruth = () => {
 }
   tdBox.style.display = "none"
   window.pickDare = () => {
-  if (playerIds[selectedPlayerIndex] !== myId) return
+  if (playerIds[selectedPlayerIndex] !== myName) return
   spinLocked = true
 
   const q = dares[Math.floor(Math.random() * dares.length)]
