@@ -20,6 +20,7 @@ if (window.innerWidth > 600) {
   `
   throw new Error("Desktop blocked")
 }
+
 /* ===============================
    FIREBASE INIT v8
 ================================ */
@@ -33,7 +34,7 @@ firebase.initializeApp(firebaseConfig)
 var db = firebase.database()
 
 /* ===============================
-   DEVICE ID one device one player
+   DEVICE ID (one device one player)
 ================================ */
 let myId = localStorage.getItem("playerId")
 if (!myId) {
@@ -58,7 +59,6 @@ const dares = [
   "Next round ka hype banao"
 ]
 
-let mode = ""
 let roomId = ""
 let myName = ""
 
@@ -74,13 +74,11 @@ let visualRotation = 0
    UI MODE
 ================================ */
 window.showNormal = () => {
-  mode = "normal"
   home.classList.add("hidden")
   normal.classList.remove("hidden")
 }
 
 window.showMulti = () => {
-  mode = "multi"
   home.classList.add("hidden")
   multi.classList.remove("hidden")
 }
@@ -163,11 +161,14 @@ function openLobby() {
     }
   })
 
+  // 🔥 GLOBAL RESULT SYNC
   db.ref("rooms/" + roomId + "/lastAction").on("value", snap => {
     const a = snap.val()
     if (!a) return
-    result.innerText = a.by + " chose " + a.type
+
+    result.innerText = "Selected " + a.by
     question.innerText = a.type + ": " + a.text
+
     tdBox.style.display = "none"
     spinLocked = false
   })
@@ -214,7 +215,7 @@ function startGame() {
 }
 
 /* ===============================
-   RENDER PLAYERS
+   RENDER PLAYERS (NO OVERLAP)
 ================================ */
 function renderPlayers() {
   const area = document.querySelector(".game-area")
@@ -225,20 +226,26 @@ function renderPlayers() {
   bottleDiv.id = "bottle"
   area.appendChild(bottleDiv)
 
-  const r = 140
-  const c = 180
-  const step = 360 / players.length
+  const count = players.length
+  const center = 180
+  let radius = count === 2 ? 155 : count === 3 ? 140 : 125
+  const step = 360 / count
 
   players.forEach((p, i) => {
     const angle = (step * i - 90) * Math.PI / 180
-    const x = c + r * Math.cos(angle)
-    const y = c + r * Math.sin(angle)
+    const x = center + radius * Math.cos(angle)
+    const y = center + radius * Math.sin(angle)
 
     const d = document.createElement("div")
     d.className = "player"
     d.style.left = x + "px"
     d.style.top = y + "px"
+    d.style.whiteSpace = "nowrap"
+    d.style.maxWidth = "120px"
+    d.style.overflow = "hidden"
+    d.style.textOverflow = "ellipsis"
     d.innerText = p
+
     area.appendChild(d)
   })
 
@@ -260,6 +267,7 @@ function updateTurn(t) {
     playerIds[t] === myId ? "auto" : "none"
 
   tdBox.style.display = "none"
+  question.innerText = ""
 }
 
 /* ===============================
@@ -329,13 +337,17 @@ function animateSpin(i) {
     `translate(-50%,-50%) rotate(${visualRotation}deg)`
 
   result.innerText = "Selected " + players[i]
+  question.innerText = "Waiting for choice..."
 
-  tdBox.style.display =
-    playerIds[i] === myId ? "block" : "none"
+  if (playerIds[i] === myId) {
+    tdBox.style.display = "block"
+  } else {
+    tdBox.style.display = "none"
+  }
 }
 
 /* ===============================
-   TRUTH DARE
+   TRUTH / DARE
 ================================ */
 window.pickTruth = () => {
   if (playerIds[selectedPlayerIndex] !== myId) return
@@ -359,4 +371,4 @@ window.pickDare = () => {
     type: "Dare",
     text: q
   })
-         }
+}
