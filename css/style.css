@@ -61,3 +61,9 @@ input{
   transform:translate(-50%,-50%) rotate(0deg);
   transition:transform 4s ease-out;
 }
+/* 📱 DESKTOP BLOCK */
+@media (min-width: 601px) {
+  body {
+    display: none;
+  }
+}
